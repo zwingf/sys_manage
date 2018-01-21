@@ -1,0 +1,90 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<beans xmlns="http://www.springframework.org/schema/beans"
+	xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:context="http://www.springframework.org/schema/context"
+	xmlns:task="http://www.springframework.org/schema/task"
+	xsi:schemaLocation="http://www.springframework.org/schema/beans 
+	http://www.springframework.org/schema/beans/spring-beans-3.2.xsd
+	http://www.springframework.org/schema/context 
+	http://www.springframework.org/schema/context/spring-context-3.2.xsd
+	http://www.springframework.org/schema/task 
+	http://www.springframework.org/schema/task/spring-task-3.2.xsd"
+	default-lazy-init="true">
+	
+	<task:annotation-driven />
+
+    <!-- spring自带的task的bug，只有注解和配置同时配置才能起作用，该bug修复的版本估计差不多要4.0版本，具体有待查询官网 -->
+	<task:scheduled-tasks>
+        <task:scheduled ref="hzlqswOrderCloseJob" method="close" cron="*/5 * * * * ?" /> 
+        <task:scheduled ref="hzlqswTakeOutOrderCloseJob" method="close" cron="0 */1 * * * ?"/>
+        <task:scheduled ref="hzlqswGoodsPresellOrderCloseJob" method="close" cron="2 */1 * * * ?"/>
+        <task:scheduled ref="hzlqswGoodsPresellOrderCloseJob" method="presellOver" cron="2 */1 * * * ?"/>
+        <task:scheduled ref="hzlqswAttendanceWarningJob" method="warn" cron="2 */1 7-11 * * MON-FRI"/>
+        <task:scheduled ref="hzlqswAttendanceWarningJob" method="leavWarn" cron="2 */1 16-19 * * MON-FRI"/>
+       <!--  <task:scheduled ref="hzlqswWorkFlowJob" method="checkApplyExpired" cron="0 0 1,13 * * ?"/> -->
+        <task:scheduled ref="hzlqswWorkFlowJob" method="workFlowWarn" cron="0 0 10 * * ? "/>
+        <task:scheduled ref="hzlqswTrainOrderCloseJob" method="close" cron="0 */5 * * * ?" />
+        <task:scheduled ref="hzlqswTouristOrderJob" method="expire" cron="0 5 0 1/1 * ?" />
+	</task:scheduled-tasks>
+	 
+	<!-- (施工)定时任务 -->
+	<bean name="quartzScheduler"
+		class="org.springframework.scheduling.quartz.SchedulerFactoryBean">
+		<!--必须，QuartzScheduler 延时启动，应用启动后 QuartzScheduler 再启动-->
+		<property name="startupDelay" value="30" />
+		<!-- 普通触发器 ：触发器列表-->
+		<property name="triggers">
+			<list>
+				<ref local="handleTrigger" />
+				<ref local="handleTriggerPointWarn" />
+			</list>
+		</property>
+	</bean>
+	
+	<!-- 配置触发器 -->
+	<bean id="handleTrigger" class="org.springframework.scheduling.quartz.CronTriggerBean">
+		<property name="jobDetail">
+			<ref bean="handleDetail" />
+		</property>
+		<property name="cronExpression">
+			<!-- 每60秒   -->
+			<value>0/60 * * * * ?</value>
+		</property>
+	</bean>
+
+	<!-- 配置执行定时任务的类和方法 -->
+	<bean id="handleDetail"
+		class="org.springframework.scheduling.quartz.MethodInvokingJobDetailFactoryBean">
+		<property name="targetObject">
+			<bean class="com.hzlq.hzlqswserver.job.HzlqswJobEvent"></bean>
+		</property>
+		<property name="targetMethod">
+			<value>freshBooksView</value>
+		</property>
+		<property name="concurrent" value="false"/>
+	</bean>
+
+	<!-- 配置触发器 -->
+	<bean id="handleTriggerPointWarn" class="org.springframework.scheduling.quartz.CronTriggerBean">
+		<property name="jobDetail">
+			<ref bean="poinWarn" />
+		</property>
+		<property name="cronExpression">
+			<!-- 每5分钟   -->
+			<value>0 0/5 * * * ?</value>
+		</property>
+	</bean>
+
+	<!-- 5分钟检查一次纠正人员状态 -->
+	<bean id="poinWarn"
+		  class="org.springframework.scheduling.quartz.MethodInvokingJobDetailFactoryBean">
+		<property name="targetObject">
+			<bean class="com.sqjz.appserver.job.SqjzPointWarnJob"></bean>
+		</property>
+		<property name="targetMethod">
+			<value>warnDeal</value>
+		</property>
+		<property name="concurrent" value="false"/>
+	</bean>
+	
+</beans>
+

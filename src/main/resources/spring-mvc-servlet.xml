@@ -1,0 +1,81 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<beans xmlns="http://www.springframework.org/schema/beans"
+	xmlns:aop="http://www.springframework.org/schema/aop" xmlns:mvc="http://www.springframework.org/schema/mvc"
+	xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:context="http://www.springframework.org/schema/context"
+	xsi:schemaLocation="http://www.springframework.org/schema/beans 
+	http://www.springframework.org/schema/beans/spring-beans-3.2.xsd
+	http://www.springframework.org/schema/context 
+	http://www.springframework.org/schema/context/spring-context-3.2.xsd
+	http://www.springframework.org/schema/aop 
+	http://www.springframework.org/schema/aop/spring-aop-3.2.xsd
+	http://www.springframework.org/schema/mvc
+	http://www.springframework.org/schema/mvc/spring-mvc-3.2.xsd"
+	default-lazy-init="true">
+
+	<mvc:annotation-driven />
+
+	<aop:aspectj-autoproxy />
+
+	<!-- 拦截器 -->
+	<mvc:interceptors>
+		<mvc:interceptor>
+			<mvc:mapping path="/**" />
+			<bean class="com.sys.interceptors.ServiceInterceptor"/>
+		</mvc:interceptor>
+	</mvc:interceptors>
+
+	<context:component-scan base-package="com.sys.web" use-default-filters="false">
+		<context:include-filter type="regex"
+								expression="com.sys.dao.impl.*" />
+		<context:include-filter type="regex"
+								expression="com.sys.service.impl.*" />
+		<context:include-filter type="regex"
+								expression="com.sys.web.*" />
+	</context:component-scan>
+
+	<!-- SpringMVC上传文件时,需配置MultipartResolver处理器 -->
+	<bean id="multipartResolver"
+		class="org.springframework.web.multipart.commons.CommonsMultipartResolver">
+		<!-- 指定所上传文件的总大小不能超过100m.....注意maxUploadSize属性的限制不是针对单个文件,而是所有文件的容量之和 -->
+		<property name="maxUploadSize" value="1073741824" />
+	</bean>
+
+	<!-- ============= 调度工厂 =============  -->
+	<bean name="quartzScheduler"
+		class="org.springframework.scheduling.quartz.SchedulerFactoryBean">
+		<!--必须，QuartzScheduler 延时启动，应用启动后 QuartzScheduler 再启动-->
+		<property name="startupDelay" value="30" />
+		<!-- 普通触发器 ：触发器列表-->
+		<property name="triggers">
+			<list>
+				<!--<ref local="handleTrigger" />-->
+			</list>
+		</property>
+	</bean>
+
+	<!-- ============= 调度触发器 ============= -->
+	<bean id="handleTrigger" class="org.springframework.scheduling.quartz.CronTriggerFactoryBean">
+		<property name="jobDetail" ref="handleDetail"/>
+		<property name="cronExpression" value="0 0 0 * * ? *"/>
+	</bean>
+
+	<!-- ============= 调度业务=============  -->
+	<bean id="handleDetail" class="org.springframework.scheduling.quartz.MethodInvokingJobDetailFactoryBean">
+		<!-- 要调用的对象 -->
+		<property name="targetObject" ref="aa"/>
+		<!-- 要执行的方法名称 -->
+		<property name="targetMethod" value="aaa"/>
+		<!-- 如果前一个任务还没有结束第二个任务不会启动 false -->
+		<property name="concurrent" value="false"/>
+	</bean>
+
+	<!--开启这个配置，spring才能识别@Scheduled注解-->
+	<!--	<task:annotation-driven scheduler="qbScheduler" mode="proxy"/>
+        <task:scheduler id="qbScheduler" pool-size="10"/>-->
+	<!--活动任务管理的定时任务 变更活动状态-->
+	<!--	<task:scheduled-tasks>
+            &lt;!&ndash;<task:scheduled ref="taskJob" method="job1" cron="0 */1 * * * ?"/>&ndash;&gt;
+            <task:scheduled ref="updateActivityStatus" method="chengeActivityStatus" cron="0 0/3 * * * ? "/> &lt;!&ndash;每3分钟执行一次&ndash;&gt;
+        </task:scheduled-tasks>-->
+</beans>
+
